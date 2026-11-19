@@ -60,7 +60,8 @@ if [ "$MODE" = fork ]; then
   check "receive-pack advertisement through the cache" "$(code GET "${GIT_URL}$own/info/refs?service=git-receive-pack" token)" 404
   check "receive-pack POST through the cache" "$(code POST "${GIT_URL}$own/git-receive-pack" token "$(ls_refs_body)")" 404
   check "push (pushInsteadOf: straight to github.com)" "$(GIT_TERMINAL_PROMPT=0 git push -q origin HEAD:refs/heads/w6-fork-push >/dev/null 2>&1 && echo pushed || echo refused)" refused
-  check "seed a mirror for a repo that does not exist" "$(code GET "${GIT_URL}The-CodeCave/w6-r3-doesnotexist/info/refs?service=git-upload-pack" token)" 401
+  # Outside the window's three-repo allowlist: nginx answers 404 before git-cache-proxy (which would answer 401) is reached.
+  check "seed a mirror for a repo that does not exist" "$(code GET "${GIT_URL}The-CodeCave/w6-r3-doesnotexist/info/refs?service=git-upload-pack" token)" 404
   check "seed the private path" "$(code POST "${GIT_URL}$T/git-upload-pack" token "$(ls_refs_body)")" 401
   # The PR head commit lives in the fork; GitHub serves it under the base repo (refs/pull/N/head). Fetching it by SHA through the
   # cache may pin it under the mirror's hidden namespace, never under a branch: the advertised branches stay GitHub's.
