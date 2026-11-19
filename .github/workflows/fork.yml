@@ -1,0 +1,23 @@
+# W6 round 3 (temporary): a fork PR's read-only token tries to read the private mirror, push, or seed a mirror.
+name: fork
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  attack:
+    runs-on: router-linux-x64-2
+    steps:
+      - name: Test tools and PR checkout (direct from github.com, no route yet)
+        uses: actions/checkout@v4
+        with: { path: .w6src }
+      - name: Route github.com through the cache over HTTPS (as the hook does)
+        run: |
+          cp .w6src/.w6/ca.pem "$RUNNER_TEMP/w6-ca.pem"; cp .w6src/.w6/route.sh "$RUNNER_TEMP/w6-route.sh"; cp .w6src/.w6/attack.sh "$RUNNER_TEMP/"
+          . .w6src/.w6/fork.env; for v in T XSHA XOID XSIZE SECONDS_; do echo "$v=${!v}" >>"$GITHUB_ENV"; done
+          echo "OWN_OID=$(sed -n 's/^oid sha256://p' .w6src/pub.bin)" >>"$GITHUB_ENV"; echo "OWN_SIZE=$(sed -n 's/^size //p' .w6src/pub.bin)" >>"$GITHUB_ENV"
+          rm -rf .w6src; . "$RUNNER_TEMP/w6-route.sh"; route
+      - name: Checkout through the cache
+        uses: actions/checkout@v4
+      - name: Attack as the fork PR
+        env: { TOKEN: "${{ github.token }}", MODE: fork, FORK_SHA: "${{ github.event.pull_request.head.sha }}" }
+        run: bash "$RUNNER_TEMP/attack.sh"

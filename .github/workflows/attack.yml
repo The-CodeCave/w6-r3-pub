@@ -1,0 +1,29 @@
+# W6 round 3 (temporary): this public repo's token against a warm private mirror.
+name: attack
+on:
+  workflow_dispatch:
+    inputs:
+      target: { required: true, default: The-CodeCave/w6-r3-priv }
+      xsha: { required: true }
+      xoid: { required: true }
+      xsize: { required: true }
+      seconds: { required: true, default: "180" }
+permissions:
+  contents: read
+jobs:
+  attack:
+    runs-on: router-linux-x64-2
+    steps:
+      - &tools
+        name: Test tools (direct from github.com, no route yet)
+        uses: actions/checkout@v4
+        with: { path: .w6src }
+      - &route
+        name: Route github.com through the cache over HTTPS (as the hook does)
+        run: |
+          cp .w6src/.w6/ca.pem "$RUNNER_TEMP/w6-ca.pem"; cp .w6src/.w6/route.sh "$RUNNER_TEMP/w6-route.sh"; cp .w6src/.w6/attack.sh "$RUNNER_TEMP/"
+          echo "OWN_OID=$(sed -n 's/^oid sha256://p' .w6src/pub.bin)" >>"$GITHUB_ENV"; echo "OWN_SIZE=$(sed -n 's/^size //p' .w6src/pub.bin)" >>"$GITHUB_ENV"
+          rm -rf .w6src; . "$RUNNER_TEMP/w6-route.sh"; route
+      - name: Attack
+        env: { TOKEN: "${{ github.token }}", MODE: public, T: "${{ inputs.target }}", XSHA: "${{ inputs.xsha }}", XOID: "${{ inputs.xoid }}", XSIZE: "${{ inputs.xsize }}", SECONDS_: "${{ inputs.seconds }}" }
+        run: bash "$RUNNER_TEMP/attack.sh"
